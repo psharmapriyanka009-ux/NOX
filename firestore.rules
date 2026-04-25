@@ -1,0 +1,122 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 0. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Helpers ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+    function incoming() {
+      return request.resource.data;
+    }
+    function existing() {
+      return resource.data;
+    }
+    function isVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    // --- User Profile ---
+    function isValidUser(data) {
+      return data.username is string && data.username.size() >= 3 && data.username.size() <= 30
+          && data.bio is string && data.bio.size() <= 500
+          && data.profile_pic is string && data.profile_pic.size() <= 1000
+          && data.followers_count is number
+          && data.following_count is number
+          && data.created_at == request.time;
+    }
+
+    match /users/{userId} {
+      allow read: if isSignedIn();
+      allow create: if isOwner(userId) 
+          && isValidUser(incoming())
+          && incoming().followers_count == 0
+          && incoming().following_count == 0;
+      
+      allow update: if isOwner(userId)
+          && incoming().diff(existing()).affectedKeys().hasOnly(['username', 'bio', 'profile_pic'])
+          && incoming().username is string && incoming().username.size() >= 3
+          && incoming().bio is string && incoming().bio.size() <= 500
+          && incoming().profile_pic is string && incoming().profile_pic.size() <= 1000;
+      
+      // Allow updates to follow arrays and counts (Social actions)
+      allow update: if isSignedIn() 
+          && incoming().diff(existing()).affectedKeys().hasAny(['followers', 'following', 'followers_count', 'following_count']);
+    }
+
+    // --- Posts ---
+    function isValidPost(data) {
+      return data.user_id == request.auth.uid
+          && data.image_url is string && data.image_url.size() <= 1000
+          && data.caption is string && data.caption.size() <= 2200
+          && data.likes_count is number
+          && data.created_at == request.time;
+    }
+
+    match /posts/{postId} {
+      allow list: if isSignedIn();
+      allow get: if isSignedIn();
+      
+      allow create: if isSignedIn() 
+          && isValidId(postId)
+          && isValidPost(incoming())
+          && incoming().likes_count == 0;
+      
+      allow update: if (isOwner(existing().user_id)
+          && incoming().diff(existing()).affectedKeys().hasOnly(['caption'])
+          && incoming().caption is string && incoming().caption.size() <= 2200)
+          || (isSignedIn() && incoming().diff(existing()).affectedKeys().hasAny(['likes_count', 'liked_by']));
+      
+      allow delete: if isOwner(existing().user_id);
+    }
+
+    // --- Comments ---
+    match /comments/{commentId} {
+      allow list: if isSignedIn();
+      allow create: if isSignedIn() 
+          && incoming().user_id == request.auth.uid
+          && incoming().created_at == request.time;
+      allow delete: if isSignedIn() && (incoming().user_id == request.auth.uid || isOwner(get(/databases/$(database)/documents/posts/$(incoming().post_id)).data.user_id));
+    }
+
+    // --- Notifications ---
+    match /notifications/{notificationId} {
+      allow list: if isSignedIn() && resource.data.user_id == request.auth.uid;
+      allow create: if isSignedIn() && incoming().triggered_by == request.auth.uid;
+      allow update: if isSignedIn() && resource.data.user_id == request.auth.uid && incoming().diff(existing()).affectedKeys().hasOnly(['read']);
+    }
+
+    // --- Stories ---
+    match /stories/{storyId} {
+      allow list: if isSignedIn();
+      allow get: if isSignedIn();
+      allow create: if isSignedIn() && incoming().user_id == request.auth.uid && incoming().created_at == request.time;
+      allow update: if isSignedIn() && incoming().diff(existing()).affectedKeys().hasOnly(['viewers']);
+      allow delete: if isActiveOwner(existing().user_id);
+    }
+
+    // --- Reels ---
+    match /reels/{reelId} {
+      allow list: if isSignedIn();
+      allow get: if isSignedIn();
+      allow create: if isSignedIn() && incoming().user_id == request.auth.uid && incoming().created_at == request.time;
+      allow update: if (isActiveOwner(existing().user_id) && incoming().diff(existing()).affectedKeys().hasOnly(['caption']))
+          || (isSignedIn() && incoming().diff(existing()).affectedKeys().hasAny(['likes_count', 'liked_by']));
+      allow delete: if isActiveOwner(existing().user_id);
+    }
+
+    function isActiveOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+  }
+}

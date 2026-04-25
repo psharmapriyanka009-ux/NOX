@@ -1,0 +1,123 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile information",
+      "type": "object",
+      "properties": {
+        "username": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "bio": { "type": "string" },
+        "profile_pic": { "type": "string" },
+        "followers_count": { "type": "number" },
+        "following_count": { "type": "number" },
+        "followers": { "type": "array", "items": { "type": "string" } },
+        "following": { "type": "array", "items": { "type": "string" } },
+        "created_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["username", "email", "created_at"]
+    },
+    "Post": {
+      "title": "Post",
+      "description": "Social media post",
+      "type": "object",
+      "properties": {
+        "user_id": { "type": "string" },
+        "username": { "type": "string" },
+        "user_avatar": { "type": "string" },
+        "image_url": { "type": "string" },
+        "caption": { "type": "string" },
+        "likes_count": { "type": "number" },
+        "liked_by": { "type": "array", "items": { "type": "string" } },
+        "created_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["user_id", "image_url", "created_at"]
+    },
+    "Comment": {
+      "title": "Comment",
+      "description": "Post comment",
+      "type": "object",
+      "properties": {
+        "post_id": { "type": "string" },
+        "user_id": { "type": "string" },
+        "username": { "type": "string" },
+        "user_avatar": { "type": "string" },
+        "text": { "type": "string" },
+        "created_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["post_id", "user_id", "text", "created_at"]
+    },
+    "Notification": {
+      "title": "Notification",
+      "description": "User notification",
+      "type": "object",
+      "properties": {
+        "user_id": { "type": "string" },
+        "type": { "type": "string", "enum": ["like", "follow", "comment"] },
+        "triggered_by": { "type": "string" },
+        "triggered_by_name": { "type": "string" },
+        "post_id": { "type": "string" },
+        "created_at": { "type": "string", "format": "date-time" },
+        "read": { "type": "boolean" }
+      },
+      "required": ["user_id", "type", "triggered_by", "created_at"]
+    },
+    "Story": {
+      "title": "Story",
+      "description": "Short-lived content",
+      "type": "object",
+      "properties": {
+        "user_id": { "type": "string" },
+        "username": { "type": "string" },
+        "user_avatar": { "type": "string" },
+        "media_url": { "type": "string" },
+        "created_at": { "type": "string", "format": "date-time" },
+        "expires_at": { "type": "string", "format": "date-time" },
+        "viewers": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["user_id", "media_url", "created_at", "expires_at"]
+    },
+    "Reel": {
+      "title": "Reel",
+      "description": "Short vertical video content",
+      "type": "object",
+      "properties": {
+        "user_id": { "type": "string" },
+        "username": { "type": "string" },
+        "user_avatar": { "type": "string" },
+        "video_url": { "type": "string" },
+        "caption": { "type": "string" },
+        "likes_count": { "type": "number" },
+        "liked_by": { "type": "array", "items": { "type": "string" } },
+        "created_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["user_id", "video_url", "created_at"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "Public user profiles"
+    },
+    "/posts/{postId}": {
+      "schema": "Post",
+      "description": "Social media posts"
+    },
+    "/comments/{commentId}": {
+      "schema": "Comment",
+      "description": "Post comments"
+    },
+    "/notifications/{notificationId}": {
+      "schema": "Notification",
+      "description": "User notifications"
+    },
+    "/stories/{storyId}": {
+      "schema": "Story",
+      "description": "Expiring user stories"
+    },
+    "/reels/{reelId}": {
+      "schema": "Reel",
+      "description": "Short vertical videos"
+    }
+  }
+}
